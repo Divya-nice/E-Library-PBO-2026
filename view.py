@@ -1,10 +1,3 @@
-# view.py
-# Branch: feature/view-ui  (Lunny)
-# Fokus: UI/Tampilan Tkinter untuk E-Library
-# CATATAN: Belum ada SQLite, CRUD, event button, atau controller.
-#          Semua widget hanya tampilan dan siap dihubungkan
-#          ke Controller/Model oleh tim lain.
-
 import tkinter as tk
 from tkinter import ttk
 
