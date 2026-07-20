@@ -66,6 +66,15 @@ class LabeledCombobox(tk.Frame):
                  bg=Style.BG, fg=Style.TEXT, width=14, anchor="w").pack(side="left")
         self.combo = ttk.Combobox(self, values=values or [], width=width, state="readonly")
         self.combo.pack(side="left", padx=5)
+    
+    def get(self):
+        return self.combo.get()
+
+    def set(self, value):
+        self.combo.set(value)
+
+    def set_values(self, values):
+        self.combo["values"] = values
 
 
 # ============================================================
@@ -130,11 +139,56 @@ class DataBukuPage(BasePage):
 
         btn_area = tk.Frame(container, bg=Style.BG)
         btn_area.pack(fill="x", pady=10)
-        for text, color in [("Tambah", "#2ecc71"), ("Update", "#3498db"),
-                            ("Hapus", "#e74c3c"), ("Reset", "#95a5a6")]:
-            tk.Button(btn_area, text=text, bg=color, fg=Style.WHITE,
-                      font=Style.FONT_NORMAL, width=12, relief="flat",
-                      cursor="hand2").pack(side="left", padx=5)
+        self.btn_tambah = tk.Button(
+            btn_area,
+            text="Tambah",
+            bg="#2ecc71",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+        self.btn_tambah.pack(side="left", padx=5)
+
+        self.btn_update = tk.Button(
+            btn_area,
+            text="Update",
+            bg="#3498db",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_update.pack(side="left", padx=5)
+
+        self.btn_hapus = tk.Button(
+            btn_area,
+            text="Hapus",
+            bg="#e74c3c",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_hapus.pack(side="left", padx=5)
+
+        self.btn_reset = tk.Button(
+            btn_area,
+            text="Reset",
+            bg="#95a5a6",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_reset.pack(side="left", padx=5)
 
         cols = ("ID", "Judul", "Penulis", "Penerbit", "Tahun", "Kategori", "Stok")
         self.tree = ttk.Treeview(container, columns=cols, show="headings", height=10)
@@ -168,11 +222,56 @@ class DataAnggotaPage(BasePage):
 
         btn_area = tk.Frame(container, bg=Style.BG)
         btn_area.pack(fill="x", pady=10)
-        for text, color in [("Tambah", "#2ecc71"), ("Update", "#3498db"),
-                            ("Hapus", "#e74c3c"), ("Reset", "#95a5a6")]:
-            tk.Button(btn_area, text=text, bg=color, fg=Style.WHITE,
-                      font=Style.FONT_NORMAL, width=12, relief="flat",
-                      cursor="hand2").pack(side="left", padx=5)
+        self.btn_tambah = tk.Button(
+            btn_area,
+            text="Tambah",
+            bg="#2ecc71",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+        self.btn_tambah.pack(side="left", padx=5)
+
+        self.btn_update = tk.Button(
+            btn_area,
+            text="Update",
+            bg="#3498db",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_update.pack(side="left", padx=5)
+
+        self.btn_hapus = tk.Button(
+            btn_area,
+            text="Hapus",
+            bg="#e74c3c",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_hapus.pack(side="left", padx=5)
+
+        self.btn_reset = tk.Button(
+            btn_area,
+            text="Reset",
+            bg="#95a5a6",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_reset.pack(side="left", padx=5)
 
         cols = ("ID", "Nama", "Alamat", "Nomor HP")
         self.tree = ttk.Treeview(container, columns=cols, show="headings", height=12)
@@ -208,11 +307,56 @@ class PeminjamanPage(BasePage):
 
         btn_area = tk.Frame(container, bg=Style.BG)
         btn_area.pack(fill="x", pady=10)
-        for text, color in [("Tambah", "#2ecc71"), ("Update", "#3498db"),
-                            ("Hapus", "#e74c3c")]:
-            tk.Button(btn_area, text=text, bg=color, fg=Style.WHITE,
-                      font=Style.FONT_NORMAL, width=12, relief="flat",
-                      cursor="hand2").pack(side="left", padx=5)
+        self.btn_tambah = tk.Button(
+            btn_area,
+            text="Tambah",
+            bg="#2ecc71",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+        self.btn_tambah.pack(side="left", padx=5)
+
+        self.btn_update = tk.Button(
+            btn_area,
+            text="Update",
+            bg="#3498db",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_update.pack(side="left", padx=5)
+
+        self.btn_hapus = tk.Button(
+            btn_area,
+            text="Hapus",
+            bg="#e74c3c",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_hapus.pack(side="left", padx=5)
+
+        self.btn_reset = tk.Button(
+            btn_area,
+            text="Reset",
+            bg="#95a5a6",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=12,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_reset.pack(side="left", padx=5)
 
         cols = ("ID Pinjam", "Anggota", "Buku", "Tanggal Pinjam",
                 "Batas Kembali", "Status")
@@ -246,9 +390,19 @@ class PengembalianPage(BasePage):
 
         btn_area = tk.Frame(container, bg=Style.BG)
         btn_area.pack(fill="x", pady=10)
-        tk.Button(btn_area, text="Proses Pengembalian", bg="#2ecc71",
-                  fg=Style.WHITE, font=Style.FONT_NORMAL, width=20,
-                  relief="flat", cursor="hand2").pack(side="left", padx=5)
+
+        self.btn_proses = tk.Button(
+            btn_area,
+            text="Proses Pengembalian",
+            bg="#2ecc71",
+            fg=Style.WHITE,
+            font=Style.FONT_NORMAL,
+            width=20,
+            relief="flat",
+            cursor="hand2"
+        )
+
+        self.btn_proses.pack(side="left", padx=5)
 
         cols = ("ID", "Anggota", "Buku", "Tanggal Kembali", "Denda")
         self.tree = ttk.Treeview(container, columns=cols, show="headings", height=12)
@@ -337,6 +491,13 @@ class ELibraryView(tk.Tk):
             "Peminjaman": PeminjamanPage(self.content),
             "Pengembalian": PengembalianPage(self.content),
         }
+
+        self.dashboard_page = self.pages["Dashboard"]
+        self.buku_page = self.pages["Data Buku"]
+        self.anggota_page = self.pages["Data Anggota"]
+        self.peminjaman_page = self.pages["Peminjaman"]
+        self.pengembalian_page = self.pages["Pengembalian"]
+
         for page in self.pages.values():
             page.place(x=0, y=0, relwidth=1, relheight=1)
 
