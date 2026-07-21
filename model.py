@@ -85,22 +85,18 @@ def count_terlambat():
         """, ("Dipinjam",))
 
         data = cursor.fetchall()
-        print(data)
-
         hari_ini = date.today()
-        print("Hari ini:", hari_ini)
-
         total = 0
 
         for row in data:
-            batas = datetime.strptime(row[0], "%d-%m-%Y").date()
-
-            print("Batas:", batas)
+            try:
+                batas = datetime.strptime(row[0], "%d-%m-%Y").date()
+            except (ValueError, TypeError):
+                # Lewati data dengan format tanggal tidak valid
+                continue
 
             if batas < hari_ini:
                 total += 1
-        
-        print("Total terlambat:", total)
 
         return total
 
@@ -184,6 +180,12 @@ def create_buku(judul, penulis, penerbit, tahun_terbit, kategori, stok):
         return False
 
     try:
+        tahun_terbit = int(tahun_terbit) if str(tahun_terbit).strip() != "" else None
+        stok = int(stok) if str(stok).strip() != "" else 0
+    except ValueError:
+        return False
+
+    try:
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -234,6 +236,16 @@ def get_all_buku():
 # UPDATE & DELETE BUKU
 # ==========================
 def update_buku(id_buku, judul, penulis, penerbit, tahun_terbit, kategori, stok):
+
+    if judul.strip() == "" or penulis.strip() == "":
+        return False
+
+    try:
+        tahun_terbit = int(tahun_terbit) if str(tahun_terbit).strip() != "" else None
+        stok = int(stok) if str(stok).strip() != "" else 0
+    except ValueError:
+        return False
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -484,7 +496,6 @@ def get_all_peminjaman():
                 p.id_pinjam,
                 a.nama,
                 b.judul,
-                p.id_buku,
                 p.tanggal_pinjam,
                 p.batas_kembali,
                 p.status

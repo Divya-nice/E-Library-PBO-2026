@@ -69,31 +69,10 @@ class Controller:
         dipinjam = model.count_dipinjam()
         terlambat = model.count_terlambat()
 
-        print("Dashboard")
-        print("Buku :", total_buku)
-        print("Anggota :", total_anggota)
-        print("Dipinjam :", dipinjam)
-        print("Terlambat :", terlambat)
-
         page.lbl_total_buku.config(text=str(total_buku))
         page.lbl_total_anggota.config(text=str(total_anggota))
         page.lbl_buku_dipinjam.config(text=str(dipinjam))
         page.lbl_buku_terlambat.config(text=str(terlambat))
-
-    def load_combobox(self):
-        page = self.app.peminjaman_page
-        buku = model.get_all_buku()
-        anggota = model.get_all_anggota()
-
-        page.f_buku.combo["values"] = [
-            f"{row[0]} - {row[1]}"
-            for row in buku
-        ]
-
-        page.f_anggota.combo["values"] = [
-            f"{row[0]} - {row[1]}"
-            for row in anggota
-        ]
 
 # 3. Fitur Buku  
     # Menampilkan data buku
@@ -227,8 +206,9 @@ class Controller:
     def reset_buku(self):
         page = self.app.buku_page
 
-        page.f_id.entry.config(state="readonly")
+        page.f_id.entry.config(state="normal")
         page.f_id.set("")
+        page.f_id.entry.config(state="readonly")
         page.f_judul.set("")
         page.f_penulis.set("")
         page.f_penerbit.set("")
@@ -368,7 +348,10 @@ class Controller:
     # Merefresh form data anggota
     def reset_anggota(self):
         page = self.app.anggota_page
+
+        page.f_id.entry.config(state="normal")
         page.f_id.set("")
+        page.f_id.entry.config(state="readonly")
         page.f_nama.set("")
         page.f_alamat.set("")
         page.f_hp.set("")
@@ -407,6 +390,16 @@ class Controller:
             messagebox.showwarning(
                 "Peringatan",
                 "Lengkapi data terlebih dahulu."
+            )
+            return
+
+        try:
+            datetime.strptime(page.f_tgl_pinjam.get(), "%d-%m-%Y")
+            datetime.strptime(page.f_batas.get(), "%d-%m-%Y")
+        except ValueError:
+            messagebox.showerror(
+                "Error",
+                "Format tanggal harus DD-MM-YYYY"
             )
             return
 
@@ -462,8 +455,8 @@ class Controller:
         page.f_id.entry.config(state="readonly")
         page.f_anggota.combo.set(values[1])
         page.f_buku.combo.set(values[2])
-        page.f_tgl_pinjam.set(values[3])
-        page.f_batas.set(values[4])
+        page.f_tgl_pinjam.set(values[4])
+        page.f_batas.set(values[5])
     
     # Mengupdate data peminjaman
     def update_peminjaman(self):
@@ -584,18 +577,6 @@ class Controller:
                 "Pilih data peminjaman terlebih dahulu."
             )
             return
-        
-        try:
-            datetime.strptime(
-            page.f_tgl_kembali.get(),
-            "%d-%m-%Y"
-            )
-        except ValueError:
-            messagebox.showerror(
-            "Error",
-            "Format tanggal harus DD-MM-YYYY"
-            )
-            return
 
         if page.f_tgl_kembali.get() == "":
             messagebox.showwarning(
@@ -604,17 +585,30 @@ class Controller:
             )
             return
 
+        try:
+            datetime.strptime(
+                page.f_tgl_kembali.get(),
+                "%d-%m-%Y"
+            )
+        except ValueError:
+            messagebox.showerror(
+                "Error",
+                "Format tanggal harus DD-MM-YYYY"
+            )
+            return
+
         id_pinjam = page.f_pinjam.combo.get().split(" - ")[0]
 
-        data = model.get_all_peminjaman()
+        batas_kembali = model.get_batas_kembali(id_pinjam)
 
-        id_buku = None
-        for row in data:
-            if str(row[0]) == str(id_pinjam):
-                id_buku = row[3] 
-            break
+        if not batas_kembali:
+            messagebox.showerror(
+                "Error",
+                "Data peminjaman tidak ditemukan."
+            )
+            return
 
-        denda = model.hitung_denda(model.get_batas_kembali(id_pinjam),page.f_tgl_kembali.get())
+        denda = model.hitung_denda(batas_kembali, page.f_tgl_kembali.get())
 
         page.f_denda.entry.config(state="normal")
         page.f_denda.set(f"Rp {denda:,}".replace(",", "."))
@@ -627,9 +621,8 @@ class Controller:
         )
 
         if berhasil:
-            id_buku = model.get_id_buku_by_pinjam(id_pinjam)
-
-            model.update_stok_buku(id_buku, 1)
+            # selesai_peminjaman() mengubah status jadi 'Dikembalikan'
+            # sekaligus menambah kembali stok buku (+1) — cukup panggil sekali
             model.selesai_peminjaman(id_pinjam)
 
             self.load_pengembalian()
