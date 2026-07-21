@@ -84,31 +84,36 @@ class DashboardPage(BasePage):
     def __init__(self, parent):
         super().__init__(parent, title="Dashboard E-Library")
 
-        tk.Label(self, text="Ringkasan Data Perpustakaan Digital",
-                 font=Style.FONT_NORMAL, bg=Style.BG,
-                 fg="#7f8c8d").pack(anchor="w", padx=20, pady=(10, 20))
+        tk.Label(self, text="Ringkasan Data Perpustakaan Digital", font=Style.FONT_NORMAL, bg=Style.BG, fg="#7f8c8d").pack(anchor="w", padx=20, pady=(10, 20))
 
         card_area = tk.Frame(self, bg=Style.BG)
         card_area.pack(fill="x", padx=20)
 
-        cards = [
-            ("Total Buku", "0", "#3498db"),
-            ("Total Anggota", "0", "#2ecc71"),
-            ("Buku Dipinjam", "0", "#e67e22"),
-            ("Buku Terlambat", "0", "#e74c3c"),
-        ]
-        for i, (title, value, color) in enumerate(cards):
-            self._create_card(card_area, title, value, color, i)
+        # Label angka dashboard
+        self.lbl_total_buku = self._create_card(card_area, "Total Buku","#3498db",0)
+
+        self.lbl_total_anggota = self._create_card(card_area,"Total Anggota","#2ecc71", 1)
+
+        self.lbl_buku_dipinjam = self._create_card(card_area,"Buku Dipinjam","#e67e22", 2)
+
+        self.lbl_buku_terlambat = self._create_card(card_area,"Buku Terlambat","#e74c3c",3)
+
+        for i in range(4):
             card_area.grid_columnconfigure(i, weight=1)
 
-    def _create_card(self, parent, title, value, color, col):
-        card = tk.Frame(parent, bg=Style.CARD, bd=0, relief="flat")
+    def _create_card(self, parent, title, color, col):
+        card = tk.Frame(parent, bg=Style.CARD)
         card.grid(row=0, column=col, padx=10, pady=10, sticky="nsew", ipadx=10, ipady=15)
+
         tk.Frame(card, bg=color, height=5).pack(fill="x")
-        tk.Label(card, text=value, font=Style.FONT_CARD_NUM,
-                 bg=Style.CARD, fg=color).pack(pady=(15, 5))
-        tk.Label(card, text=title, font=Style.FONT_NORMAL,
-                 bg=Style.CARD, fg=Style.TEXT).pack(pady=(0, 15))
+
+        lbl = tk.Label(card, text="0", font=Style.FONT_CARD_NUM, bg=Style.CARD, fg=color)
+
+        lbl.pack(pady=(15, 5))
+
+        tk.Label(card,text=title, font=Style.FONT_NORMAL, bg=Style.CARD, fg=Style.TEXT).pack(pady=(0, 15))
+
+        return lbl
 
 
 # ============================================================
@@ -377,23 +382,23 @@ class PengembalianPage(BasePage):
         container = tk.Frame(self, bg=Style.BG)
         container.pack(fill="both", expand=True, padx=20, pady=15)
 
-        form = tk.LabelFrame(container, text="Form Pengembalian", bg=Style.BG,
-                             fg=Style.TEXT, font=Style.FONT_SUBTITLE, padx=15, pady=15)
+        form = tk.LabelFrame(container, text="Data Pengembalian Buku", bg=Style.BG, fg=Style.TEXT, font=Style.FONT_SUBTITLE, padx=15, pady=15)
         form.pack(fill="x")
 
-        self.f_pinjam = LabeledCombobox(form, "Peminjaman", values=[])
-        self.f_tgl_kembali = LabeledEntry(form, "Tanggal Kembali")
-        self.f_denda = LabeledEntry(form, "Denda")
+        self.f_pinjam = LabeledCombobox(form, "Peminjaman", values=[], width=45)
+        self.f_tgl_kembali = LabeledEntry(form, "Tanggal Kembali", width=45)
+        self.f_denda = LabeledEntry(form, "Denda", width=45)
+        self.f_denda.entry.config(state="readonly")
 
         for w in (self.f_pinjam, self.f_tgl_kembali, self.f_denda):
-            w.pack(anchor="w", pady=4)
+            w.pack(fill="x", pady=4)
 
         btn_area = tk.Frame(container, bg=Style.BG)
         btn_area.pack(fill="x", pady=10)
 
         self.btn_proses = tk.Button(
             btn_area,
-            text="Proses Pengembalian",
+            text="Kembalikan Buku",
             bg="#2ecc71",
             fg=Style.WHITE,
             font=Style.FONT_NORMAL,

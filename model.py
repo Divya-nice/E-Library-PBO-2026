@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from datetime import date, datetime
 
 # ==========================
 # Membuat folder database otomatis
@@ -78,14 +79,33 @@ def count_terlambat():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT COUNT(*)
+            SELECT batas_kembali
             FROM peminjaman
-            WHERE status='Terlambat'
-        """)
-        return cursor.fetchone()[0]
+            WHERE status = ?
+        """, ("Dipinjam",))
+
+        data = cursor.fetchall()
+        print(data)
+
+        hari_ini = date.today()
+        print("Hari ini:", hari_ini)
+
+        total = 0
+
+        for row in data:
+            batas = datetime.strptime(row[0], "%d-%m-%Y").date()
+
+            print("Batas:", batas)
+
+            if batas < hari_ini:
+                total += 1
+        
+        print("Total terlambat:", total)
+
+        return total
 
     except sqlite3.Error as e:
-        print(e)
+        print("Error:", e)
         return 0
 
     finally:
@@ -268,6 +288,55 @@ def delete_buku(id_buku):
     finally:
         conn.close()
 
+def update_stok_buku(id_buku, jumlah):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        UPDATE buku
+        SET stok = stok + ?
+        WHERE id_buku = ?
+        """, (
+            jumlah,
+            id_buku
+        ))
+
+        conn.commit()
+        return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
+
+def get_stok_buku(id_buku):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT stok
+        FROM buku
+        WHERE id_buku = ?
+        """, (id_buku,))
+
+        data = cursor.fetchone()
+
+        if data:
+            return data[0]
+
+        return 0
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return 0
+
+    finally:
+        conn.close()
+
 
 # ==========================
 # CRUD ANGGOTA
@@ -415,6 +484,7 @@ def get_all_peminjaman():
                 p.id_pinjam,
                 a.nama,
                 b.judul,
+                p.id_buku,
                 p.tanggal_pinjam,
                 p.batas_kembali,
                 p.status
@@ -469,23 +539,43 @@ def update_peminjaman(id_pinjam, id_buku, id_anggota, tanggal_pinjam, batas_kemb
         conn.close()
 
 def selesai_peminjaman(id_pinjam):
-
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
+        # Ambil id buku dari peminjaman
         cursor.execute("""
-        UPDATE peminjaman
-        SET status='Dikembalikan'
-        WHERE id_pinjam=?
+        SELECT id_buku
+        FROM peminjaman
+        WHERE id_pinjam = ?
         """, (id_pinjam,))
 
-        conn.commit()
+        data = cursor.fetchone()
 
+        if not data:
+            return False
+
+        id_buku = data[0]
+
+        # Ubah status peminjaman
+        cursor.execute("""
+        UPDATE peminjaman
+        SET status = 'Dikembalikan'
+        WHERE id_pinjam = ?
+        """, (id_pinjam,))
+
+        # Tambahkan stok buku
+        cursor.execute("""
+        UPDATE buku
+        SET stok = stok + 1
+        WHERE id_buku = ?
+        """, (id_buku,))
+
+        conn.commit()
         return True
 
     except sqlite3.Error as e:
-        print(e)
+        print("Error :", e)
         return False
 
     finally:
@@ -574,6 +664,42 @@ def get_all_pengembalian():
 
     finally:
         conn.close()
+
+def get_batas_kembali(id_pinjam):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT batas_kembali
+        FROM peminjaman
+        WHERE id_pinjam = ?
+        """, (id_pinjam,))
+
+        data = cursor.fetchone()
+
+        if data:
+            return data[0]
+
+        return None
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return None
+
+    finally:
+        conn.close()
+
+def hitung_denda(batas_kembali, tanggal_kembali):
+    batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
+    kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
+
+    selisih = (kembali - batas).days
+
+    if selisih <= 0:
+        return 0
+
+    return selisih * 1000
 
 
 # ==========================
