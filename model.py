@@ -468,6 +468,29 @@ def update_peminjaman(id_pinjam, id_buku, id_anggota, tanggal_pinjam, batas_kemb
     finally:
         conn.close()
 
+def selesai_peminjaman(id_pinjam):
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        UPDATE peminjaman
+        SET status='Dikembalikan'
+        WHERE id_pinjam=?
+        """, (id_pinjam,))
+
+        conn.commit()
+
+        return True
+
+    except sqlite3.Error as e:
+        print(e)
+        return False
+
+    finally:
+        conn.close()
+
 
 def delete_peminjaman(id_pinjam):
 
@@ -556,7 +579,7 @@ def get_all_pengembalian():
 # ==========================
 # Jalankan Program
 # ==========================
-if __name__ == "_main_":
+if __name__ == "__main__":
 
     create_tables()
 
