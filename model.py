@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from datetime import date, datetime
 
 # ==========================
 # Membuat folder database otomatis
@@ -78,14 +79,29 @@ def count_terlambat():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT COUNT(*)
+            SELECT batas_kembali
             FROM peminjaman
-            WHERE status='Terlambat'
-        """)
-        return cursor.fetchone()[0]
+            WHERE status = ?
+        """, ("Dipinjam",))
+
+        data = cursor.fetchall()
+        hari_ini = date.today()
+        total = 0
+
+        for row in data:
+            try:
+                batas = datetime.strptime(row[0], "%d-%m-%Y").date()
+            except (ValueError, TypeError):
+                # Lewati data dengan format tanggal tidak valid
+                continue
+
+            if batas < hari_ini:
+                total += 1
+
+        return total
 
     except sqlite3.Error as e:
-        print(e)
+        print("Error:", e)
         return 0
 
     finally:
@@ -164,6 +180,12 @@ def create_buku(judul, penulis, penerbit, tahun_terbit, kategori, stok):
         return False
 
     try:
+        tahun_terbit = int(tahun_terbit) if str(tahun_terbit).strip() != "" else None
+        stok = int(stok) if str(stok).strip() != "" else 0
+    except ValueError:
+        return False
+
+    try:
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -214,6 +236,16 @@ def get_all_buku():
 # UPDATE & DELETE BUKU
 # ==========================
 def update_buku(id_buku, judul, penulis, penerbit, tahun_terbit, kategori, stok):
+
+    if judul.strip() == "" or penulis.strip() == "":
+        return False
+
+    try:
+        tahun_terbit = int(tahun_terbit) if str(tahun_terbit).strip() != "" else None
+        stok = int(stok) if str(stok).strip() != "" else 0
+    except ValueError:
+        return False
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -264,6 +296,55 @@ def delete_buku(id_buku):
     except sqlite3.Error as e:
         print("Error :", e)
         return False
+
+    finally:
+        conn.close()
+
+def update_stok_buku(id_buku, jumlah):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        UPDATE buku
+        SET stok = stok + ?
+        WHERE id_buku = ?
+        """, (
+            jumlah,
+            id_buku
+        ))
+
+        conn.commit()
+        return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
+
+def get_stok_buku(id_buku):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT stok
+        FROM buku
+        WHERE id_buku = ?
+        """, (id_buku,))
+
+        data = cursor.fetchone()
+
+        if data:
+            return data[0]
+
+        return 0
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return 0
 
     finally:
         conn.close()
@@ -468,6 +549,49 @@ def update_peminjaman(id_pinjam, id_buku, id_anggota, tanggal_pinjam, batas_kemb
     finally:
         conn.close()
 
+def selesai_peminjaman(id_pinjam):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Ambil id buku dari peminjaman
+        cursor.execute("""
+        SELECT id_buku
+        FROM peminjaman
+        WHERE id_pinjam = ?
+        """, (id_pinjam,))
+
+        data = cursor.fetchone()
+
+        if not data:
+            return False
+
+        id_buku = data[0]
+
+        # Ubah status peminjaman
+        cursor.execute("""
+        UPDATE peminjaman
+        SET status = 'Dikembalikan'
+        WHERE id_pinjam = ?
+        """, (id_pinjam,))
+
+        # Tambahkan stok buku
+        cursor.execute("""
+        UPDATE buku
+        SET stok = stok + 1
+        WHERE id_buku = ?
+        """, (id_buku,))
+
+        conn.commit()
+        return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
+
 
 def delete_peminjaman(id_pinjam):
 
@@ -552,11 +676,47 @@ def get_all_pengembalian():
     finally:
         conn.close()
 
+def get_batas_kembali(id_pinjam):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT batas_kembali
+        FROM peminjaman
+        WHERE id_pinjam = ?
+        """, (id_pinjam,))
+
+        data = cursor.fetchone()
+
+        if data:
+            return data[0]
+
+        return None
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return None
+
+    finally:
+        conn.close()
+
+def hitung_denda(batas_kembali, tanggal_kembali):
+    batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
+    kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
+
+    selisih = (kembali - batas).days
+
+    if selisih <= 0:
+        return 0
+
+    return selisih * 1000
+
 
 # ==========================
 # Jalankan Program
 # ==========================
-if __name__ == "_main_":
+if __name__ == "__main__":
 
     create_tables()
 
