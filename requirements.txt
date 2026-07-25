@@ -1,0 +1,2 @@
+# Tidak ada dependency eksternal.
+# Tkinter sudah termasuk dalam instalasi standar Python.
