@@ -9,6 +9,9 @@ os.makedirs("database", exist_ok=True)
 
 DB_NAME = "database/library.db"
 
+# Tarif denda keterlambatan per hari (dalam Rupiah)
+DENDA_PER_HARI = 1000
+
 
 # ==========================
 # Koneksi Database
@@ -118,7 +121,7 @@ def create_tables():
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS buku(
-            id_buku INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_buku INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
             judul TEXT NOT NULL,
             penulis TEXT NOT NULL,
             penerbit TEXT NOT NULL,
@@ -130,16 +133,16 @@ def create_tables():
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS anggota(
-            id_anggota INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_anggota INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
             nama TEXT NOT NULL,
             alamat TEXT,
-            no_hp TEXT
+            no_hp TEXT UNIQUE
         )
         """)
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS peminjaman(
-            id_pinjam INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_pinjam INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
             id_buku INTEGER NOT NULL,
             id_anggota INTEGER NOT NULL,
             tanggal_pinjam TEXT NOT NULL,
@@ -152,7 +155,7 @@ def create_tables():
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS pengembalian(
-            id_pengembalian INTEGER PRIMARY KEY AUTOINCREMENT,
+            id_pengembalian INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
             id_pinjam INTEGER NOT NULL,
             tanggal_kembali TEXT NOT NULL,
             denda REAL DEFAULT 0,
@@ -358,6 +361,10 @@ def create_anggota(nama, alamat, no_hp):
     if nama.strip() == "":
         return False
 
+    # Kosongkan jadi NULL (bukan string kosong) supaya UNIQUE hanya
+    # menolak nomor HP yang benar-benar sama, bukan anggota tanpa HP.
+    no_hp = no_hp.strip() if no_hp and no_hp.strip() != "" else None
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -374,6 +381,10 @@ def create_anggota(nama, alamat, no_hp):
 
         conn.commit()
         return True
+
+    except sqlite3.IntegrityError:
+        # UNIQUE constraint gagal -> no_hp sudah dipakai anggota lain
+        return False
 
     except sqlite3.Error as e:
         print("Error :", e)
@@ -406,6 +417,8 @@ def get_all_anggota():
 
 def update_anggota(id_anggota, nama, alamat, no_hp):
 
+    no_hp = no_hp.strip() if no_hp and no_hp.strip() != "" else None
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -425,6 +438,10 @@ def update_anggota(id_anggota, nama, alamat, no_hp):
 
         conn.commit()
         return True
+
+    except sqlite3.IntegrityError:
+        # UNIQUE constraint gagal -> no_hp sudah dipakai anggota lain
+        return False
 
     except sqlite3.Error as e:
         print("Error :", e)
@@ -447,6 +464,38 @@ def delete_anggota(id_anggota):
 
         conn.commit()
         return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
+
+
+def cek_no_hp_terdaftar(no_hp, id_anggota=None):
+    # Mengecek apakah no_hp sudah dipakai anggota lain.
+    # id_anggota diisi saat mode update, supaya nomor HP milik
+    # anggota yang sedang diedit sendiri tidak dianggap duplikat.
+    if not no_hp or no_hp.strip() == "":
+        return False
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        if id_anggota:
+            cursor.execute("""
+            SELECT COUNT(*) FROM anggota
+            WHERE no_hp = ? AND id_anggota != ?
+            """, (no_hp.strip(), id_anggota))
+        else:
+            cursor.execute("""
+            SELECT COUNT(*) FROM anggota
+            WHERE no_hp = ?
+            """, (no_hp.strip(),))
+
+        return cursor.fetchone()[0] > 0
 
     except sqlite3.Error as e:
         print("Error :", e)
@@ -703,15 +752,20 @@ def get_batas_kembali(id_pinjam):
         conn.close()
 
 def hitung_denda(batas_kembali, tanggal_kembali):
-    batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
-    kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
+    # Menghitung denda keterlambatan secara otomatis.
+    # Denda = jumlah hari terlambat x tarif per hari (DENDA_PER_HARI).
+    try:
+        batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
+        kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
+    except (ValueError, TypeError):
+        return 0
 
     selisih = (kembali - batas).days
 
     if selisih <= 0:
         return 0
 
-    return selisih * 1000
+    return selisih * DENDA_PER_HARI
 
 
 # ==========================
@@ -723,123 +777,3 @@ if __name__ == "__main__":
 
     print("Database berhasil dibuat.")
     print("Lokasi database :", DB_NAME)
-
-
-# ==========================
-# STOK BUKU & DENDA (dipakai oleh Controller / main.py)
-# ==========================
-from datetime import datetime
-
-# Tarif denda keterlambatan per hari (dalam Rupiah)
-DENDA_PER_HARI = 1000
-
-
-def get_stok_buku(id_buku):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT stok FROM buku WHERE id_buku=?",
-            (id_buku,)
-        )
-        row = cursor.fetchone()
-        return row[0] if row else 0
-
-    except sqlite3.Error as e:
-        print("Error :", e)
-        return 0
-
-    finally:
-        conn.close()
-
-
-def update_stok_buku(id_buku, jumlah):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "UPDATE buku SET stok = stok + ? WHERE id_buku=?",
-            (jumlah, id_buku)
-        )
-
-        conn.commit()
-        return True
-
-    except sqlite3.Error as e:
-        print("Error :", e)
-        return False
-
-    finally:
-        conn.close()
-
-
-def get_batas_kembali(id_pinjam):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT batas_kembali FROM peminjaman WHERE id_pinjam=?",
-            (id_pinjam,)
-        )
-        row = cursor.fetchone()
-        return row[0] if row else None
-
-    except sqlite3.Error as e:
-        print("Error :", e)
-        return None
-
-    finally:
-        conn.close()
-
-
-def hitung_denda(batas_kembali, tanggal_kembali, denda_per_hari=DENDA_PER_HARI):
-    # Menghitung denda keterlambatan secara otomatis.
-    # Denda = jumlah hari terlambat x tarif per hari.
-    try:
-        batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
-        kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
-    except (ValueError, TypeError):
-        return 0
-
-    selisih_hari = (kembali - batas).days
-
-    if selisih_hari <= 0:
-        return 0
-
-    return selisih_hari * denda_per_hari
-
-
-def selesai_peminjaman(id_pinjam):
-    # Menandai peminjaman selesai (status 'Dikembalikan')
-    # sekaligus menambah kembali stok buku (+1).
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT id_buku FROM peminjaman WHERE id_pinjam=?",
-            (id_pinjam,)
-        )
-        row = cursor.fetchone()
-
-        cursor.execute(
-            "UPDATE peminjaman SET status='Dikembalikan' WHERE id_pinjam=?",
-            (id_pinjam,)
-        )
-
-        conn.commit()
-
-        if row:
-            update_stok_buku(row[0], 1)
-
-        return True
-
-    except sqlite3.Error as e:
-        print("Error :", e)
-        return False
-
-    finally:
-        conn.close()
