@@ -4,7 +4,10 @@ from tkinter import messagebox
 
 import model
 from view import ELibraryView
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Batas maksimal peminjaman (dalam hari)
+BATAS_PINJAM_HARI = 7
 
 # Class Controller
 class Controller:
@@ -29,6 +32,7 @@ class Controller:
         self.load_pengembalian()
         self.load_combo_pengembalian()
         self.load_peminjaman()
+        self.reset_peminjaman()
 
     def bind_events(self):
         # Data Buku
@@ -55,9 +59,20 @@ class Controller:
 
         self.app.peminjaman_page.tree.bind("<<TreeviewSelect>>", self.pilih_peminjaman)
 
+        # Tanggal Pinjam -> otomatis menghitung Batas Kembali (+7 hari)
+        # "<<DateEntrySelected>>" terpicu saat tanggal dipilih lewat kalender (tkcalendar).
+        # "<FocusOut>" dan "<KeyRelease>" tetap disediakan sebagai fallback jika
+        # tkcalendar tidak terpasang (field jadi Entry teks biasa, lihat view.py).
+        self.app.peminjaman_page.f_tgl_pinjam.entry.bind("<<DateEntrySelected>>", self.hitung_batas_otomatis)
+        self.app.peminjaman_page.f_tgl_pinjam.entry.bind("<FocusOut>", self.hitung_batas_otomatis)
+        self.app.peminjaman_page.f_tgl_pinjam.entry.bind("<KeyRelease>", self.hitung_batas_otomatis)
+
         # Data Pengembalian
         self.app.pengembalian_page.btn_proses.config(command=self.proses_pengembalian)
+        self.app.pengembalian_page.f_tgl_kembali.entry.bind("<<DateEntrySelected>>", self.hitung_denda_otomatis)
         self.app.pengembalian_page.f_tgl_kembali.entry.bind("<FocusOut>", self.hitung_denda_otomatis)
+        self.app.pengembalian_page.f_tgl_kembali.entry.bind("<KeyRelease>", self.hitung_denda_otomatis)
+        self.app.pengembalian_page.f_pinjam.combo.bind("<<ComboboxSelected>>", self.info_batas_kembali)
     
 # 2. Load data
     # Menampilkan data di dashboard
@@ -153,6 +168,7 @@ class Controller:
             self.load_buku()
             self.load_combo_buku()
             self.reset_buku()
+            self.load_dashboard()
             messagebox.showinfo(
                 "Berhasil",
                 "Data buku berhasil diupdate."
@@ -191,6 +207,7 @@ class Controller:
             self.load_buku()
             self.load_combo_buku()
             self.reset_buku()
+            self.load_dashboard()
             messagebox.showinfo(
                 "Berhasil",
                 "Data berhasil dihapus."
@@ -244,6 +261,14 @@ class Controller:
     # Menambahkan data anggota
     def tambah_anggota(self):
         page = self.app.anggota_page
+
+        if model.cek_no_hp_terdaftar(page.f_hp.get()):
+            messagebox.showwarning(
+                "Peringatan",
+                "Nomor HP sudah terdaftar pada anggota lain."
+            )
+            return
+
         berhasil = model.create_anggota(
             page.f_nama.get(),
             page.f_alamat.get(),
@@ -285,6 +310,14 @@ class Controller:
     # Mengupdate data anggota
     def update_anggota(self):
         page = self.app.anggota_page
+
+        if model.cek_no_hp_terdaftar(page.f_hp.get(), page.f_id.get()):
+            messagebox.showwarning(
+                "Peringatan",
+                "Nomor HP sudah terdaftar pada anggota lain."
+            )
+            return
+
         berhasil = model.update_anggota(
             page.f_id.get(),
             page.f_nama.get(),
@@ -296,6 +329,7 @@ class Controller:
             self.load_anggota()
             self.load_combo_anggota()
             self.reset_anggota()
+            self.load_dashboard()
             messagebox.showinfo(
                 "Berhasil",
                 "Data berhasil diupdate."
@@ -334,6 +368,7 @@ class Controller:
             self.load_anggota()
             self.load_combo_anggota()
             self.reset_anggota()
+            self.load_dashboard()
             messagebox.showinfo(
                 "Berhasil",
                 "Data berhasil dihapus."
@@ -381,6 +416,26 @@ class Controller:
 
         for row in data:
             page.tree.insert("", "end", values=row)
+
+    # Menghitung otomatis batas kembali = tanggal pinjam + 7 hari
+    def hitung_batas_otomatis(self, event=None):
+        page = self.app.peminjaman_page
+        tgl_pinjam_str = page.f_tgl_pinjam.get()
+
+        if tgl_pinjam_str == "":
+            return
+
+        try:
+            tgl_pinjam = datetime.strptime(tgl_pinjam_str, "%d-%m-%Y")
+        except ValueError:
+            # Tanggal masih diketik/belum lengkap -> jangan dihitung dulu
+            return
+
+        batas = tgl_pinjam + timedelta(days=BATAS_PINJAM_HARI)
+
+        page.f_batas.entry.config(state="normal")
+        page.f_batas.set(batas.strftime("%d-%m-%Y"))
+        page.f_batas.entry.config(state="readonly")
 
     # Menambahkan data peminjaman
     def tambah_peminjaman(self):
@@ -456,7 +511,10 @@ class Controller:
         page.f_anggota.combo.set(values[1])
         page.f_buku.combo.set(values[2])
         page.f_tgl_pinjam.set(values[4])
+
+        page.f_batas.entry.config(state="normal")
         page.f_batas.set(values[5])
+        page.f_batas.entry.config(state="readonly")
     
     # Mengupdate data peminjaman
     def update_peminjaman(self):
@@ -466,6 +524,16 @@ class Controller:
             messagebox.showwarning(
                 "Peringatan",
                 "Pilih data terlebih dahulu."
+            )
+            return
+
+        try:
+            datetime.strptime(page.f_tgl_pinjam.get(), "%d-%m-%Y")
+            datetime.strptime(page.f_batas.get(), "%d-%m-%Y")
+        except ValueError:
+            messagebox.showerror(
+                "Error",
+                "Format tanggal harus DD-MM-YYYY"
             )
             return
 
@@ -546,8 +614,11 @@ class Controller:
         page.f_id.entry.config(state="readonly")
         page.f_anggota.combo.set("")
         page.f_buku.combo.set("")
-        page.f_tgl_pinjam.set("")
-        page.f_batas.set("")
+
+        # Tanggal pinjam otomatis hari ini, batas kembali otomatis +7 hari
+        hari_ini = datetime.now().strftime("%d-%m-%Y")
+        page.f_tgl_pinjam.set(hari_ini)
+        self.hitung_batas_otomatis()
 
 # 6. Fitur Pengembalian  
     # Menampilkan data pengembalian
@@ -561,10 +632,10 @@ class Controller:
 
         for row in data:
             row = list(row)
-            if row[4] == "" or row[4] is None:
-                row[4] = "Rp 0"
+            if row[5] == "" or row[5] is None:
+                row[5] = "Rp 0"
             else:
-                row[4] = f"Rp {float(row[4]):,.0f}".replace(",", ".")
+                row[5] = f"Rp {float(row[5]):,.0f}".replace(",", ".")
             page.tree.insert("", "end", values=row)
 
     # Memproses data pengembalian
@@ -638,6 +709,7 @@ class Controller:
 
             page.f_pinjam.combo.set("")
             page.f_tgl_kembali.set("")
+            page.lbl_info.config(text="\u2139\ufe0f  Pilih data peminjaman untuk melihat batas pengembalian.")
 
             page.f_denda.entry.config(state="normal")
             page.f_denda.set("")
@@ -684,6 +756,23 @@ class Controller:
                 daftar.append(teks)
 
         self.app.pengembalian_page.f_pinjam.combo["values"] = daftar
+
+    # Menampilkan keterangan batas maksimal pengembalian saat data peminjaman dipilih
+    def info_batas_kembali(self, event=None):
+        page = self.app.pengembalian_page
+
+        if page.f_pinjam.combo.get() == "":
+            return
+
+        id_pinjam = page.f_pinjam.combo.get().split(" - ")[0]
+        batas = model.get_batas_kembali(id_pinjam)
+
+        if batas:
+            teks = (
+                f"Batas maksimal pengembalian: {batas}. "
+                f"Jika melewati tanggal ini, denda Rp{model.DENDA_PER_HARI:,}/hari."
+            )
+            page.lbl_info.config(text="\u2139\ufe0f  " + teks.replace(",", "."))
 
     def run(self):
         self.app.mainloop()
