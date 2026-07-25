@@ -655,6 +655,7 @@ def get_all_pengembalian():
                 pengembalian.id_pengembalian,
                 anggota.nama,
                 buku.judul,
+                peminjaman.batas_kembali,
                 pengembalian.tanggal_kembali,
                 pengembalian.denda
             FROM pengembalian
@@ -722,3 +723,123 @@ if __name__ == "__main__":
 
     print("Database berhasil dibuat.")
     print("Lokasi database :", DB_NAME)
+
+
+# ==========================
+# STOK BUKU & DENDA (dipakai oleh Controller / main.py)
+# ==========================
+from datetime import datetime
+
+# Tarif denda keterlambatan per hari (dalam Rupiah)
+DENDA_PER_HARI = 1000
+
+
+def get_stok_buku(id_buku):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT stok FROM buku WHERE id_buku=?",
+            (id_buku,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else 0
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return 0
+
+    finally:
+        conn.close()
+
+
+def update_stok_buku(id_buku, jumlah):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "UPDATE buku SET stok = stok + ? WHERE id_buku=?",
+            (jumlah, id_buku)
+        )
+
+        conn.commit()
+        return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
+
+
+def get_batas_kembali(id_pinjam):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT batas_kembali FROM peminjaman WHERE id_pinjam=?",
+            (id_pinjam,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return None
+
+    finally:
+        conn.close()
+
+
+def hitung_denda(batas_kembali, tanggal_kembali, denda_per_hari=DENDA_PER_HARI):
+    # Menghitung denda keterlambatan secara otomatis.
+    # Denda = jumlah hari terlambat x tarif per hari.
+    try:
+        batas = datetime.strptime(batas_kembali, "%d-%m-%Y")
+        kembali = datetime.strptime(tanggal_kembali, "%d-%m-%Y")
+    except (ValueError, TypeError):
+        return 0
+
+    selisih_hari = (kembali - batas).days
+
+    if selisih_hari <= 0:
+        return 0
+
+    return selisih_hari * denda_per_hari
+
+
+def selesai_peminjaman(id_pinjam):
+    # Menandai peminjaman selesai (status 'Dikembalikan')
+    # sekaligus menambah kembali stok buku (+1).
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT id_buku FROM peminjaman WHERE id_pinjam=?",
+            (id_pinjam,)
+        )
+        row = cursor.fetchone()
+
+        cursor.execute(
+            "UPDATE peminjaman SET status='Dikembalikan' WHERE id_pinjam=?",
+            (id_pinjam,)
+        )
+
+        conn.commit()
+
+        if row:
+            update_stok_buku(row[0], 1)
+
+        return True
+
+    except sqlite3.Error as e:
+        print("Error :", e)
+        return False
+
+    finally:
+        conn.close()
