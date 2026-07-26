@@ -407,7 +407,7 @@ class TentangPage(BasePage):
 
         ttk.Separator(container, orient="horizontal").pack(fill="x", pady=15)
 
-        self._baris(container, "Dosen Pengampu", "Rizki Surtiyan Surya, M.Kom.")
+        self._baris(container, "Dosen Pengampu", "Rizki Surtiyan Surya, S.Kom., M.Kom.")
         self._baris(container, "Program Studi", "Sistem Informasi")
         self._baris(container, "Universitas", "Universitas Muhammadiyah Pontianak")
         self._baris(container, "Tahun", "2026")
